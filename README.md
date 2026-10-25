@@ -39,7 +39,7 @@ El proyecto se encuentra organizado en fases modulares que reflejan el avance de
 ---
 
 ## 🌐 Enlaces de Acceso Web (HMI Remota)
-* **Panel de Control HMI (Fase C):** [Insertar enlace público de Netlify o GitHub Pages]
+* **Panel de Control HMI (Fase C):** https://gilded-banoffee-69c306.netlify.app
 
 ---
 
