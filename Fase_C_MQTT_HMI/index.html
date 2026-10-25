@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HMI Industrial - ESP32 MQTT</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<style>
+  :root {
+    --bg-main: #0b0f19;
+    --bg-card: #131b2e;
+    --border-card: #1e293b;
+    --accent-blue: #3b82f6;
+    --accent-purple: #8b5cf6;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    margin: 0;
+    padding: 40px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    letter-spacing: -0.5px;
+    color: #ffffff;
+  }
+
+  .badge-estado {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 5px;
+    transition: all 0.3s ease;
+  }
+
+  .conectado {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+  }
+
+  .desconectado {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    width: 100%;
+    max-width: 800px;
+  }
+
+  @media (max-width: 650px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .card h2 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin: 0 0 15px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .metric-value {
+    font-size: 42px;
+    font-weight: 800;
+    color: var(--accent-blue);
+    margin: 10px 0 5px 0;
+  }
+
+  .metric-unit {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  .controls-group {
+    display: flex;
+    gap: 12px;
+    margin-top: 15px;
+  }
+
+  .btn {
+    flex: 1;
+    border: none;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    color: white;
+    transition: transform 0.1s ease, opacity 0.2s ease;
+  }
+
+  .btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+
+  .btn:active {
+    transform: translateY(1px);
+  }
+
+  .btn-primary { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+  .btn-secondary { background: linear-gradient(135deg, #7c3aed, #6d28d9); }
+  .btn-accent { background: linear-gradient(135deg, #4f46e5, #4338ca); }
+</style>
+</head>
+<body>
+
+  <header>
+    <h1>Panel de Control Industrial</h1>
+    <div id="estadoConexion" class="badge-estado desconectado">Conectando al broker...</div>
+  </header>
+
+  <div class="dashboard-grid">
+    
+    <!-- Tarjeta 1: Potenciómetro -->
+    <div class="card">
+      <h2>Sensor Potenciómetro</h2>
+      <div>
+        <div id="valorPot" class="metric-value">---</div>
+        <div class="metric-unit">Resolución ADC (0 - 4095)</div>
+      </div>
+    </div>
+
+    <!-- Tarjeta 2: Estado del Servo -->
+    <div class="card">
+      <h2>Ángulo Actual Servomotor</h2>
+      <div>
+        <div id="valorServo" class="metric-value" style="color: var(--accent-purple);">---</div>
+        <div class="metric-unit">Pin 25 (PWM)</div>
+      </div>
+    </div>
+
+    <!-- Tarjeta 3: Control LED -->
+    <div class="card">
+      <h2>Control LED (Pin 33)</h2>
+      <div class="controls-group">
+        <button class="btn btn-primary" onclick="enviarMQTT('instrumentacion/grupo1/control', '1')">Encender</button>
+        <button class="btn btn-secondary" onclick="enviarMQTT('instrumentacion/grupo1/control', '0')">Apagar</button>
+      </div>
+    </div>
+
+    <!-- Tarjeta 4: Control Servo -->
+    <div class="card">
+      <h2>Control Servomotor</h2>
+      <div class="controls-group">
+        <button class="btn btn-primary" onclick="enviarMQTT('instrumentacion/grupo1/servo', '0')">0°</button>
+        <button class="btn btn-accent" onclick="enviarMQTT('instrumentacion/grupo1/servo', '90')">90°</button>
+        <button class="btn btn-secondary" onclick="enviarMQTT('instrumentacion/grupo1/servo', '180')">180°</button>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+  const BROKER = "wss://broker.emqx.io:8084/mqtt";
+  const TOPIC_POT = "instrumentacion/grupo1/potenciometro";
+  const TOPIC_SERVO_ESTADO = "instrumentacion/grupo1/servo/estado";
+
+  const client = mqtt.connect(BROKER, { clean: true });
+
+  client.on("connect", () => {
+    const badge = document.getElementById("estadoConexion");
+    badge.className = "badge-estado conectado";
+    badge.innerText = "● Conectado al Broker MQTT";
+
+    client.subscribe(TOPIC_POT);
+    client.subscribe(TOPIC_SERVO_ESTADO);
+  });
+
+  client.on("message", (topic, message) => {
+    const payload = message.toString();
+    if (topic === TOPIC_POT) {
+      document.getElementById("valorPot").innerText = payload;
+    }
+    if (topic === TOPIC_SERVO_ESTADO) {
+      document.getElementById("valorServo").innerText = payload + "°";
+    }
+  });
+
+  client.on("close", () => {
+    const badge = document.getElementById("estadoConexion");
+    badge.className = "badge-estado desconectado";
+    badge.innerText = "● Desconectado del Broker";
+  });
+
+  function enviarMQTT(topico, valor) {
+    if (client.connected) {
+      client.publish(topico, valor);
+    } else {
+      alert("Error: No hay conexión activa con el broker MQTT.");
+    }
+  }
+</script>
+
+</body>
+</html>
